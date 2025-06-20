@@ -8,10 +8,12 @@ import { GoogleIcon } from "@/components/icons/google";
 export default function LoginPage() {
   const handleLogin = async () => {
     const supabase = createClient();
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        redirectTo,
       },
     });
   };
