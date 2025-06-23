@@ -1,100 +1,151 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from "date-fns";
+import { OvertimeDetailsMap } from "./user-dashboard";
+import { createClient } from "@/lib/supabase/client";
+import { startOfMonth, endOfMonth, format, getDay } from "date-fns";
+import type { User } from "@supabase/supabase-js";
 
-type WfhSchedule = {
-  full_name: string | null;
-  days_of_week: number[];
-};
+interface WfhCalendarViewProps {
+  user: User;
+  initialDate: Date;
+  wfhDaysOfWeek: number[];
+  overtimeDays: Date[];
+  overtimeDetails: OvertimeDetailsMap;
+}
 
-type WfhDaysMap = {
-  [key: string]: string[]; // Map date string to array of employee names
-};
-
-export default function WfhCalendarView() {
-  const [wfhSchedules, setWfhSchedules] = useState<WfhSchedule[]>([]);
-  const [wfhDaysMap, setWfhDaysMap] = useState<WfhDaysMap>({});
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDayWfh, setSelectedDayWfh] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-
+export default function WfhCalendarView({
+  user,
+  initialDate,
+  wfhDaysOfWeek,
+  overtimeDays,
+  overtimeDetails,
+}: WfhCalendarViewProps) {
+  const [date, setDate] = useState<Date | undefined>(initialDate);
+  const [currentWfhDaysOfWeek, setCurrentWfhDaysOfWeek] = useState(wfhDaysOfWeek);
+  const [currentOvertimeDays, setCurrentOvertimeDays] = useState(overtimeDays);
+  const [currentOvertimeDetails, setCurrentOvertimeDetails] = useState(overtimeDetails);
   const supabase = createClient();
 
   useEffect(() => {
-    async function fetchWfhSchedules() {
-      const { data, error } = await supabase.rpc("get_wfh_schedules_with_names");
-      if (error) {
-        console.error("Error fetching WFH schedules:", error);
-        return;
+    async function fetchScheduleData() {
+      if (!date) return;
+
+      // Fetch WFH schedule
+      const { data: wfhData } = await supabase
+        .from("wfh_schedules")
+        .select("days_of_week")
+        .eq("user_id", user.id)
+        .single();
+
+      if (wfhData && wfhData.days_of_week) {
+        setCurrentWfhDaysOfWeek(wfhData.days_of_week);
+      } else {
+        setCurrentWfhDaysOfWeek([]);
       }
-      if (data) {
-        setWfhSchedules(data);
+
+      // Fetch overtime filings for the new month
+      const monthStart = startOfMonth(date);
+      const monthEnd = endOfMonth(date);
+      const { data: overtimeData } = await supabase
+        .from("overtime_filings")
+        .select("start_time, end_time")
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .gte("start_time", monthStart.toISOString())
+        .lte("start_time", monthEnd.toISOString());
+
+      if (overtimeData) {
+        const otMap = overtimeData.reduce(
+          (acc: OvertimeDetailsMap, filing: { start_time: string; end_time: string }) => {
+            const filingDate = new Date(filing.start_time);
+            const dateKey = format(filingDate, "yyyy-MM-dd");
+            acc[dateKey] = {
+              startTime: format(filingDate, "p"),
+              endTime: format(new Date(filing.end_time), "p"),
+            };
+            return acc;
+          },
+          {}
+        );
+        setCurrentOvertimeDetails(otMap);
+
+        const otDates = overtimeData.map(
+          (filing: { start_time: string }) => new Date(filing.start_time)
+        );
+        setCurrentOvertimeDays(otDates);
+      } else {
+        setCurrentOvertimeDays([]);
+        setCurrentOvertimeDetails({});
       }
     }
-    fetchWfhSchedules();
-  }, [supabase]);
 
-  useEffect(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const allDaysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    fetchScheduleData();
+  }, [date, supabase, user.id]);
 
-    const newWfhDaysMap: WfhDaysMap = {};
-    allDaysInMonth.forEach((day) => {
-      const dayOfWeek = getDay(day);
-      const employeesOnWfh = wfhSchedules
-        .filter((schedule) => schedule.days_of_week.includes(dayOfWeek))
-        .map((schedule) => schedule.full_name || "Unknown");
-
-      if (employeesOnWfh.length > 0) {
-        newWfhDaysMap[format(day, "yyyy-MM-dd")] = employeesOnWfh;
-      }
-    });
-    setWfhDaysMap(newWfhDaysMap);
-  }, [wfhSchedules, currentMonth]);
-
-  const handleDayClick = (day: Date) => {
-    const dateKey = format(day, "yyyy-MM-dd");
-    const employees = wfhDaysMap[dateKey];
-    if (employees && employees.length > 0) {
-      setSelectedDate(day);
-      setSelectedDayWfh(employees);
-      setIsDialogOpen(true);
-    }
-  };
-
-  const wfhDaysModifier = Object.keys(wfhDaysMap).map((dateStr) => new Date(dateStr + "T12:00:00"));
+  // Calculate the different day categories for styling
+  const overtimeOnWfhDays = currentOvertimeDays.filter((otDate) =>
+    currentWfhDaysOfWeek.includes(getDay(otDate))
+  );
+  const overtimeOnlyDays = currentOvertimeDays.filter(
+    (otDate) => !currentWfhDaysOfWeek.includes(getDay(otDate))
+  );
 
   return (
-    <>
-      <div className="flex justify-center">
-        <Calendar
-          modifiers={{ wfh: wfhDaysModifier }}
-          modifiersStyles={{ wfh: { color: "#1e88e5", backgroundColor: "#e3f2fd" } }}
-          onDayClick={handleDayClick}
-          onMonthChange={setCurrentMonth}
-          className="rounded-md border"
-        />
+    <div className="flex flex-col items-center pt-4">
+      <Calendar
+        mode="single"
+        selected={date}
+        onSelect={setDate}
+        onMonthChange={(newMonth) => setDate(newMonth)}
+        className="rounded-md"
+        modifiers={{
+          wfh: { dayOfWeek: currentWfhDaysOfWeek },
+          overtime: overtimeOnlyDays,
+          wfhAndOvertime: overtimeOnWfhDays,
+        }}
+        modifiersStyles={{
+          wfh: {
+            color: "#1e88e5",
+            backgroundColor: "#e3f2fd",
+          },
+          overtime: {
+            color: "#43a047",
+            backgroundColor: "#e8f5e9",
+          },
+          wfhAndOvertime: {
+            background: "linear-gradient(45deg, #e3f2fd 50%, #e8f5e9 50%)",
+          },
+        }}
+        overtimeDetails={currentOvertimeDetails}
+      />
+      <div className="flex items-center space-x-4 p-4">
+        <div className="flex items-center space-x-2">
+          <div
+            className="h-4 w-4 rounded-full"
+            style={{ backgroundColor: "#e3f2fd", border: "1px solid #1e88e5" }}
+          />
+          <span className="text-sm text-muted-foreground">WFH Day</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div
+            className="h-4 w-4 rounded-full"
+            style={{ backgroundColor: "#e8f5e9", border: "1px solid #43a047" }}
+          />
+          <span className="text-sm text-muted-foreground">Overtime</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div
+            className="h-4 w-4 rounded-full"
+            style={{
+              background: "linear-gradient(45deg, #e3f2fd 50%, #e8f5e9 50%)",
+              border: "1px solid #ababab",
+            }}
+          />
+          <span className="text-sm text-muted-foreground">WFH & OT</span>
+        </div>
       </div>
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>WFH on {selectedDate ? format(selectedDate, "PPP") : ""}</DialogTitle>
-          </DialogHeader>
-          <ul className="list-disc pl-5">
-            {selectedDayWfh.map((name, index) => (
-              <li key={index} className="text-sm">
-                {name}
-              </li>
-            ))}
-          </ul>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   );
 }

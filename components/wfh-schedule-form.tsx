@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { toast } from "react-toastify";
 
 const daysOfWeek = [
   { id: 1, label: "Monday" },
@@ -74,10 +75,10 @@ export default function WfhScheduleForm({ user }: { user: User }) {
     );
 
     if (!error) {
-      // Potentially show a toast message for success
+      toast.success("WFH schedule saved successfully!");
       router.refresh();
     } else {
-      // Potentially show a toast message for error
+      toast.error("Error saving WFH schedule.");
       console.error("Error saving WFH schedule:", error);
     }
   }

@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { toast } from "react-toastify";
 
 const overtimeFormSchema = z.object({
   date: z.date({
@@ -71,11 +72,11 @@ export default function OvertimeFilingForm({ user }: { user: User }) {
     });
 
     if (!error) {
-      // Potentially show a toast message for success
+      toast.success("Overtime filed successfully!");
       form.reset();
       router.refresh();
     } else {
-      // Potentially show a toast message for error
+      toast.error("Error saving overtime filing.");
       console.error("Error saving overtime filing:", error);
     }
   }

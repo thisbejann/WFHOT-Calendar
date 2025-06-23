@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PendingRequestsTable from "./pending-requests-table";
-import WfhCalendarView from "./wfh-calendar-view";
+import AdminWfhCalendar from "./admin-wfh-calendar";
 
 export default function AdminDashboard() {
   return (
@@ -28,7 +28,7 @@ export default function AdminDashboard() {
             <CardTitle>Team Work-From-Home Calendar</CardTitle>
           </CardHeader>
           <CardContent>
-            <WfhCalendarView />
+            <AdminWfhCalendar />
           </CardContent>
         </Card>
       </TabsContent>

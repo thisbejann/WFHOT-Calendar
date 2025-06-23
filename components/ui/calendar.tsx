@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { OvertimeDetailsMap } from "@/components/user-dashboard";
 
+type WfhDaysMap = Record<string, string[]>;
+
 function Calendar({
   className,
   classNames,
@@ -18,10 +20,12 @@ function Calendar({
   formatters,
   components,
   overtimeDetails,
+  wfhDaysMap,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
   overtimeDetails?: OvertimeDetailsMap;
+  wfhDaysMap?: WfhDaysMap;
 }) {
   const defaultClassNames = getDefaultClassNames();
 
@@ -29,7 +33,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "bg-background group/calendar p-3 [--cell-size:--spacing(24)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        "bg-background group/calendar p-3 [--cell-size:--spacing(24)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:[--cell-size:theme(spacing.8)] [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
@@ -124,7 +128,11 @@ function Calendar({
           return <ChevronDownIcon className={cn("size-4", className)} {...props} />;
         },
         DayButton: (dayButtonProps) => (
-          <CalendarDayButton {...dayButtonProps} overtimeDetails={overtimeDetails} />
+          <CalendarDayButton
+            {...dayButtonProps}
+            overtimeDetails={overtimeDetails}
+            wfhDaysMap={wfhDaysMap}
+          />
         ),
         WeekNumber: ({ children, ...props }) => {
           return (
@@ -147,9 +155,11 @@ function CalendarDayButton({
   day,
   modifiers,
   overtimeDetails,
+  wfhDaysMap,
   ...props
 }: React.ComponentProps<typeof DayButton> & {
   overtimeDetails?: OvertimeDetailsMap;
+  wfhDaysMap?: WfhDaysMap;
 }) {
   const defaultClassNames = getDefaultClassNames();
 
@@ -160,6 +170,9 @@ function CalendarDayButton({
 
   const dateString = format(day.date, "yyyy-MM-dd");
   const otInfo = overtimeDetails?.[dateString];
+  const wfhCount = wfhDaysMap?.[dateString]?.length || 0;
+
+  const hasContent = otInfo || wfhCount > 0;
 
   return (
     <Button
@@ -178,18 +191,29 @@ function CalendarDayButton({
       data-range-middle={modifiers.range_middle}
       className={cn(
         "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70",
+        !hasContent && "justify-center items-center",
         defaultClassNames.day,
         className
       )}
       {...props}
     >
-      <div className="absolute top-1 right-2 text-xs">{day.date.getDate()}</div>
+      {hasContent ? (
+        <div className="absolute top-1 right-2 text-xs">{day.date.getDate()}</div>
+      ) : (
+        day.date.getDate()
+      )}
       {otInfo && (
         <div className="flex flex-col items-center justify-center text-center leading-tight">
           <span className="text-[0.6rem] font-bold">OT</span>
           <span className="text-[0.6rem]">{otInfo.startTime}</span>
           <span className="text-[0.6rem]">-</span>
           <span className="text-[0.6rem]">{otInfo.endTime}</span>
+        </div>
+      )}
+      {wfhCount > 0 && !otInfo && (
+        <div className="flex flex-col items-center justify-center">
+          <span className="font-bold">{wfhCount}</span>
+          <span className="text-xs">WFH</span>
         </div>
       )}
     </Button>
