@@ -11,6 +11,12 @@ import { OvertimeDetailsMap } from "@/components/user-dashboard";
 
 type WfhDaysMap = Record<string, string[]>;
 
+type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>["variant"];
+  overtimeDetails?: OvertimeDetailsMap;
+  wfhDaysMap?: WfhDaysMap;
+};
+
 function Calendar({
   className,
   classNames,
@@ -22,11 +28,7 @@ function Calendar({
   overtimeDetails,
   wfhDaysMap,
   ...props
-}: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"];
-  overtimeDetails?: OvertimeDetailsMap;
-  wfhDaysMap?: WfhDaysMap;
-}) {
+}: CalendarProps) {
   const defaultClassNames = getDefaultClassNames();
 
   return (
@@ -169,10 +171,23 @@ function CalendarDayButton({
   }, [modifiers.focused]);
 
   const dateString = format(day.date, "yyyy-MM-dd");
-  const otInfo = overtimeDetails?.[dateString];
+  let otInfo = overtimeDetails?.[dateString] || [];
+
+  if (otInfo.length > 1) {
+    otInfo = [...otInfo].sort((a, b) => {
+      const aIsEnd = a.type === "end";
+      const bIsEnd = b.type === "end";
+
+      if (aIsEnd && !bIsEnd) return -1;
+      if (!aIsEnd && bIsEnd) return 1;
+
+      return new Date(a.fullStartTime).getTime() - new Date(b.fullStartTime).getTime();
+    });
+  }
+
   const wfhCount = wfhDaysMap?.[dateString]?.length || 0;
 
-  const hasContent = otInfo || wfhCount > 0;
+  const hasContent = otInfo.length > 0 || wfhCount > 0;
 
   return (
     <Button
@@ -202,15 +217,40 @@ function CalendarDayButton({
       ) : (
         day.date.getDate()
       )}
-      {otInfo && (
+      {otInfo.length > 0 && (
         <div className="flex flex-col items-center justify-center text-center leading-tight">
-          <span className="text-[0.6rem] font-bold">OT</span>
-          <span className="text-[0.6rem]">{otInfo.startTime}</span>
-          <span className="text-[0.6rem]">-</span>
-          <span className="text-[0.6rem]">{otInfo.endTime}</span>
+          {otInfo.map((info, index) => {
+            if (info.type === "single") {
+              return (
+                <div key={index} className="text-[0.6rem] mb-1">
+                  <span className="font-bold">OT</span>
+                  <div>{info.startTime}</div>
+                  <div>-</div>
+                  <div>{info.endTime}</div>
+                </div>
+              );
+            }
+            if (info.type === "start") {
+              return (
+                <div key={index} className="text-[0.6rem] mb-1">
+                  <span className="font-bold">Starts:</span>
+                  <div>{info.startTime}</div>
+                </div>
+              );
+            }
+            if (info.type === "end") {
+              return (
+                <div key={index} className="text-[0.6rem] mb-1">
+                  <span className="font-bold">Ends:</span>
+                  <div>{info.endTime}</div>
+                </div>
+              );
+            }
+            return null;
+          })}
         </div>
       )}
-      {wfhCount > 0 && !otInfo && (
+      {wfhCount > 0 && otInfo.length === 0 && (
         <div className="flex flex-col items-center justify-center">
           <span className="font-bold">{wfhCount}</span>
           <span className="text-xs">WFH</span>

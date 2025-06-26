@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import UserProfile from "@/components/user-profile";
 import AdminDashboard from "@/components/admin-dashboard";
 import UserDashboard from "@/components/user-dashboard";
-import UserProfile from "@/components/user-profile";
+import { PendingFiling } from "@/components/pending-requests-table";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -15,7 +16,17 @@ export default async function Page() {
     return redirect("/login");
   }
 
-  const isSuperAdmin = user.user_metadata?.is_super_admin === true;
+  const isAdmin = user.user_metadata?.is_super_admin === true;
+
+  let pendingFilings: PendingFiling[] = [];
+  if (isAdmin) {
+    const { data, error } = await supabase.rpc("get_pending_overtime_with_names");
+    if (error) {
+      console.error("Error fetching pending filings:", error);
+    } else {
+      pendingFilings = data;
+    }
+  }
 
   return (
     <div className="flex flex-col w-full min-h-screen">
@@ -26,7 +37,11 @@ export default async function Page() {
         </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 bg-muted/40">
-        {isSuperAdmin ? <AdminDashboard /> : <UserDashboard user={user} />}
+        {isAdmin ? (
+          <AdminDashboard pendingFilings={pendingFilings} />
+        ) : (
+          <UserDashboard user={user} />
+        )}
       </main>
     </div>
   );

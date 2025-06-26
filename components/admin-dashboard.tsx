@@ -2,10 +2,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import PendingRequestsTable from "./pending-requests-table";
+import PendingRequestsTable, { PendingFiling } from "./pending-requests-table";
 import AdminWfhCalendar from "./admin-wfh-calendar";
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  pendingFilings: PendingFiling[];
+}
+
+export default function AdminDashboard({ pendingFilings }: AdminDashboardProps) {
   return (
     <Tabs defaultValue="pending-ot" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -18,7 +22,7 @@ export default function AdminDashboard() {
             <CardTitle>Pending Overtime Requests</CardTitle>
           </CardHeader>
           <CardContent>
-            <PendingRequestsTable />
+            <PendingRequestsTable initialPendingFilings={pendingFilings} />
           </CardContent>
         </Card>
       </TabsContent>

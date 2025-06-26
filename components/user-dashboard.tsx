@@ -4,10 +4,20 @@ import type { User } from "@supabase/supabase-js";
 import WfhScheduleForm from "./wfh-schedule-form";
 import OvertimeFilingForm from "./overtime-filing-form";
 import { createClient } from "@/lib/supabase/server";
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { startOfMonth, endOfMonth, format, eachDayOfInterval } from "date-fns";
 import WfhCalendarView from "./wfh-calendar-view";
 
-export type OvertimeDetailsMap = Record<string, { startTime: string; endTime: string }>;
+export type OvertimeDetail = {
+  id: number;
+  startTime: string;
+  endTime: string;
+  fullStartTime: string;
+  fullEndTime: string;
+  type: "start" | "end" | "middle" | "single";
+  status: "pending" | "approved" | "declined";
+};
+
+export type OvertimeDetailsMap = Record<string, OvertimeDetail[]>;
 
 export default async function UserDashboard({ user }: { user: User }) {
   const supabase = await createClient();
@@ -27,31 +37,49 @@ export default async function UserDashboard({ user }: { user: User }) {
   const monthEnd = endOfMonth(today);
   const { data: overtimeData } = await supabase
     .from("overtime_filings")
-    .select("start_time, end_time")
+    .select("id, start_time, end_time, status")
     .eq("user_id", user.id)
-    .eq("status", "approved") // Only show approved OT
+    .in("status", ["approved", "pending"]) // Show approved and pending OT
     .gte("start_time", monthStart.toISOString())
-    .lte("start_time", monthEnd.toISOString());
+    .lte("start_time", monthEnd.toISOString())
+    .order("start_time", { ascending: true });
 
-  let overtimeDays: Date[] = [];
-  let overtimeDetails: OvertimeDetailsMap = {};
+  const overtimeDays: Date[] = [];
+  const overtimeDetails: OvertimeDetailsMap = {};
   if (overtimeData) {
-    overtimeDetails = overtimeData.reduce(
-      (acc: OvertimeDetailsMap, filing: { start_time: string; end_time: string }) => {
-        const filingDate = new Date(filing.start_time);
-        const dateKey = format(filingDate, "yyyy-MM-dd");
-        acc[dateKey] = {
-          startTime: format(filingDate, "p"),
-          endTime: format(new Date(filing.end_time), "p"),
-        };
-        return acc;
-      },
-      {}
-    );
+    overtimeData.forEach((filing) => {
+      const startDate = new Date(filing.start_time);
+      const endDate = new Date(filing.end_time);
+      const days = eachDayOfInterval({ start: startDate, end: endDate });
 
-    overtimeDays = overtimeData.map(
-      (filing: { start_time: string }) => new Date(filing.start_time)
-    );
+      days.forEach((day, index) => {
+        const dateKey = format(day, "yyyy-MM-dd");
+        if (!overtimeDetails[dateKey]) {
+          overtimeDetails[dateKey] = [];
+        }
+
+        let type: "start" | "end" | "middle" | "single" = "middle";
+        if (days.length === 1) {
+          type = "single";
+        } else if (index === 0) {
+          type = "start";
+        } else if (index === days.length - 1) {
+          type = "end";
+        }
+
+        overtimeDetails[dateKey].push({
+          id: filing.id,
+          startTime: format(startDate, "p"),
+          endTime: format(endDate, "p"),
+          fullStartTime: filing.start_time,
+          fullEndTime: filing.end_time,
+          type,
+          status: filing.status,
+        });
+      });
+
+      overtimeDays.push(...days);
+    });
   }
 
   return (

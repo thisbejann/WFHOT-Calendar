@@ -2,12 +2,12 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { format } from "date-fns";
 
-type PendingFiling = {
+export type PendingFiling = {
   id: number;
   start_time: string;
   end_time: string;
@@ -15,24 +15,18 @@ type PendingFiling = {
   full_name: string | null;
 };
 
-export default function PendingRequestsTable() {
-  const [pendingFilings, setPendingFilings] = useState<PendingFiling[]>([]);
+interface PendingRequestsTableProps {
+  initialPendingFilings: PendingFiling[];
+}
+
+export default function PendingRequestsTable({ initialPendingFilings }: PendingRequestsTableProps) {
+  const [pendingFilings, setPendingFilings] = useState<PendingFiling[]>(initialPendingFilings);
   const supabase = createClient();
   const router = useRouter();
 
   useEffect(() => {
-    async function fetchPendingFilings() {
-      const { data, error } = await supabase.rpc("get_pending_overtime_with_names");
-      if (error) {
-        console.error("Error fetching pending filings:", error);
-        return;
-      }
-      if (data) {
-        setPendingFilings(data);
-      }
-    }
-    fetchPendingFilings();
-  }, [supabase]);
+    setPendingFilings(initialPendingFilings);
+  }, [initialPendingFilings]);
 
   const handleUpdateRequest = async (id: number, status: "approved" | "declined") => {
     const {
