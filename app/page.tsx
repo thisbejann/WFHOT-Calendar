@@ -4,6 +4,7 @@ import UserProfile from "@/components/user-profile";
 import AdminDashboard from "@/components/admin-dashboard";
 import UserDashboard from "@/components/user-dashboard";
 import { PendingFiling } from "@/components/pending-requests-table";
+import { OvertimeHistory } from "@/components/all-overtime-history";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -19,12 +20,25 @@ export default async function Page() {
   const isAdmin = user.user_metadata?.is_super_admin === true;
 
   let pendingFilings: PendingFiling[] = [];
+  let overtimeHistory: OvertimeHistory[] = [];
+
   if (isAdmin) {
-    const { data, error } = await supabase.rpc("get_pending_overtime_with_names");
-    if (error) {
-      console.error("Error fetching pending filings:", error);
+    const { data: pendingData, error: pendingError } = await supabase.rpc(
+      "get_pending_overtime_with_names"
+    );
+    if (pendingError) {
+      console.error("Error fetching pending filings:", pendingError);
     } else {
-      pendingFilings = data;
+      pendingFilings = pendingData;
+    }
+
+    const { data: historyData, error: historyError } = await supabase.rpc(
+      "get_all_overtime_with_names"
+    );
+    if (historyError) {
+      console.error("Error fetching overtime history:", historyError);
+    } else if (historyData) {
+      overtimeHistory = historyData;
     }
   }
 
@@ -38,7 +52,7 @@ export default async function Page() {
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 bg-muted/40">
         {isAdmin ? (
-          <AdminDashboard pendingFilings={pendingFilings} />
+          <AdminDashboard pendingFilings={pendingFilings} overtimeHistory={overtimeHistory} />
         ) : (
           <UserDashboard user={user} />
         )}

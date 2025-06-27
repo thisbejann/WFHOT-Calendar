@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
 
 export default function UserProfile({ user }: { user: User }) {
   const router = useRouter();
@@ -46,6 +47,11 @@ export default function UserProfile({ user }: { user: User }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/profile" className="cursor-pointer">
+            Profile
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
           Log out
         </DropdownMenuItem>

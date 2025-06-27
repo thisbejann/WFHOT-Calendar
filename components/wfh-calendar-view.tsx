@@ -13,6 +13,7 @@ import { toast } from "react-toastify";
 import OvertimeFilingForm, { OvertimeFiling } from "./overtime-filing-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useRouter } from "next/navigation";
+import OneOffWfhForm from "./one-off-wfh-form";
 
 interface WfhCalendarViewProps {
   user: User;
@@ -33,14 +34,50 @@ export default function WfhCalendarView({
   const [currentWfhDaysOfWeek, setCurrentWfhDaysOfWeek] = useState(wfhDaysOfWeek);
   const [currentOvertimeDays, setCurrentOvertimeDays] = useState(overtimeDays);
   const [currentOvertimeDetails, setCurrentOvertimeDetails] = useState(overtimeDetails);
+  const [oneOffWfhDays, setOneOffWfhDays] = useState<Date[]>([]);
   const supabase = createClient();
   const [fetchedMonths, setFetchedMonths] = useState<string[]>([format(initialDate, "yyyy-MM")]);
   const [selectedDayDetails, setSelectedDayDetails] = useState<OvertimeDetail[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isOneOffWfhDialogOpen, setIsOneOffWfhDialogOpen] = useState(false);
   const [filingToEdit, setFilingToEdit] = useState<OvertimeFiling | null>(null);
   const router = useRouter();
+
+  const fetchOneOffWfhDays = useCallback(
+    async (dateForMonth: Date) => {
+      const monthStart = startOfMonth(dateForMonth);
+      const monthEnd = endOfMonth(dateForMonth);
+
+      const { data, error } = await supabase
+        .from("one_off_wfh_days")
+        .select("date")
+        .eq("user_id", user.id)
+        .gte("date", format(monthStart, "yyyy-MM-dd"))
+        .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+      if (error) {
+        toast.error("Could not fetch one-off WFH days.");
+        console.error("Error fetching one-off WFH days:", error);
+        return;
+      }
+
+      const newOneOffDays = data.map(
+        (d) => new Date(d.date + "T00:00:00") // Ensure local timezone
+      );
+
+      setOneOffWfhDays((prevDays) => {
+        const otherMonthDays = prevDays.filter((d) => {
+          const dayDate = new Date(d);
+          return !(dayDate >= monthStart && dayDate <= monthEnd);
+        });
+        const allDays = [...otherMonthDays, ...newOneOffDays];
+        return [...new Map(allDays.map((d) => [d.getTime(), d])).values()];
+      });
+    },
+    [supabase, user.id]
+  );
 
   const fetchOvertimeForMonth = useCallback(
     async (dateForMonth: Date) => {
@@ -123,15 +160,33 @@ export default function WfhCalendarView({
     [supabase, user.id]
   );
 
-  const handleDayClick: DayClickEventHandler = (day) => {
+  const handleDayClick: DayClickEventHandler = (day, modifiers) => {
+    const dayOfWeek = getDay(day);
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    if (isWeekend) {
+      toast.info("Cannot file for WFH on a weekend.");
+      return;
+    }
+
     const dateKey = format(day, "yyyy-MM-dd");
     const details = currentOvertimeDetails[dateKey] || [];
 
     if (details.length > 0) {
       setSelectedDayDetails(details);
       setSelectedDate(day);
-      setIsDialogOpen(true);
+      setIsDetailsDialogOpen(true);
+      return;
     }
+
+    if (modifiers.wfh || modifiers.oneOffWfh) {
+      // It's a WFH day, do nothing.
+      return;
+    }
+
+    // It's a normal work day, open the one-off WFH dialog.
+    setSelectedDate(day);
+    setIsOneOffWfhDialogOpen(true);
   };
 
   const handleStartEdit = async (id: number) => {
@@ -150,7 +205,7 @@ export default function WfhCalendarView({
     }
 
     setFilingToEdit(data[0]);
-    setIsDialogOpen(false); // Close details dialog
+    setIsDetailsDialogOpen(false); // Close details dialog
     setIsEditDialogOpen(true); // Open edit dialog
   };
 
@@ -188,9 +243,13 @@ export default function WfhCalendarView({
       }
 
       setCurrentOvertimeDetails(newOvertimeDetails);
-      setIsDialogOpen(false);
+      setIsDetailsDialogOpen(false);
     }
   };
+
+  useEffect(() => {
+    fetchOneOffWfhDays(initialDate);
+  }, [fetchOneOffWfhDays, initialDate]);
 
   useEffect(() => {
     setCurrentOvertimeDays(overtimeDays);
@@ -221,12 +280,13 @@ export default function WfhCalendarView({
 
       // Fetch overtime filings for the new month
       await fetchOvertimeForMonth(date);
+      await fetchOneOffWfhDays(date);
 
       setFetchedMonths((prev) => [...prev, monthKey]);
     }
 
     fetchScheduleData();
-  }, [date, supabase, user.id, fetchedMonths, fetchOvertimeForMonth]);
+  }, [date, supabase, user.id, fetchedMonths, fetchOvertimeForMonth, fetchOneOffWfhDays]);
 
   // Calculate the different day categories for styling
   const overtimeOnWfhDays = currentOvertimeDays.filter((otDate) =>
@@ -267,6 +327,7 @@ export default function WfhCalendarView({
         className="rounded-md"
         modifiers={{
           wfh: { dayOfWeek: currentWfhDaysOfWeek },
+          oneOffWfh: oneOffWfhDays,
           overtime: overtimeOnlyDays.filter(
             (d) => !pendingOvertimeDays.some((p) => isSameDay(p, d))
           ),
@@ -279,6 +340,10 @@ export default function WfhCalendarView({
           wfh: {
             color: "#1e88e5",
             backgroundColor: "#e3f2fd",
+          },
+          oneOffWfh: {
+            color: "#8e44ad",
+            backgroundColor: "#f3e5f5",
           },
           overtime: {
             color: "#43a047",
@@ -306,6 +371,13 @@ export default function WfhCalendarView({
         <div className="flex items-center space-x-2">
           <div
             className="h-4 w-4 rounded-full"
+            style={{ backgroundColor: "#f3e5f5", border: "1px solid #8e44ad" }}
+          />
+          <span className="text-sm text-muted-foreground">One-off WFH</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div
+            className="h-4 w-4 rounded-full"
             style={{ backgroundColor: "#e8f5e9", border: "1px solid #43a047" }}
           />
           <span className="text-sm text-muted-foreground">Overtime</span>
@@ -329,8 +401,8 @@ export default function WfhCalendarView({
         </div>
       </div>
       <OvertimeDetailsDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        isOpen={isDetailsDialogOpen}
+        onClose={() => setIsDetailsDialogOpen(false)}
         overtimeDetails={selectedDayDetails}
         day={selectedDate}
         onDelete={handleDeleteFiling}
@@ -357,6 +429,15 @@ export default function WfhCalendarView({
           </DialogContent>
         </Dialog>
       )}
+      <OneOffWfhForm
+        user={user}
+        isOpen={isOneOffWfhDialogOpen}
+        onClose={() => setIsOneOffWfhDialogOpen(false)}
+        selectedDate={selectedDate}
+        onSuccess={(newDate) => {
+          setOneOffWfhDays((prev) => [...prev, newDate]);
+        }}
+      />
     </div>
   );
 }
