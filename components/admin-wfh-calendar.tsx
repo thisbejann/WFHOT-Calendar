@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,12 +13,12 @@ import {
   endOfWeek,
 } from "date-fns";
 
-type WfhSchedule = {
+export type WfhSchedule = {
   full_name: string | null;
   days_of_week: number[];
 };
 
-type OneOffWfhDay = {
+export type OneOffWfhDay = {
   full_name: string | null;
   date: string; // "yyyy-MM-dd"
 };
@@ -28,9 +27,12 @@ type WfhDaysMap = {
   [key: string]: string[]; // Map date string to array of employee names
 };
 
-export default function AdminWfhCalendar() {
-  const [wfhSchedules, setWfhSchedules] = useState<WfhSchedule[]>([]);
-  const [oneOffWfhDays, setOneOffWfhDays] = useState<OneOffWfhDay[]>([]);
+interface AdminWfhCalendarProps {
+  wfhSchedules: WfhSchedule[] | null;
+  oneOffWfhDays: OneOffWfhDay[] | null;
+}
+
+export default function AdminWfhCalendar({ wfhSchedules, oneOffWfhDays }: AdminWfhCalendarProps) {
   const [wfhDaysMap, setWfhDaysMap] = useState<WfhDaysMap>({});
   const [oneOffWfhDaysMap, setOneOffWfhDaysMap] = useState<WfhDaysMap>({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -38,36 +40,8 @@ export default function AdminWfhCalendar() {
   const [selectedDayWfh, setSelectedDayWfh] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
-    async function fetchWfhSchedules() {
-      const { data, error } = await supabase.rpc("get_wfh_schedules_with_names");
-      if (error) {
-        console.error("Error fetching WFH schedules:", error);
-        return;
-      }
-      if (data) {
-        setWfhSchedules(data);
-      }
-    }
-
-    async function fetchOneOffWfhDays() {
-      const { data, error } = await supabase.rpc("get_all_one_off_wfh_days");
-      if (error) {
-        console.error("Error fetching one-off WFH days:", error);
-        return;
-      }
-      if (data) {
-        setOneOffWfhDays(data);
-      }
-    }
-
-    fetchWfhSchedules();
-    fetchOneOffWfhDays();
-  }, [supabase]);
-
-  useEffect(() => {
+    if (!wfhSchedules || !oneOffWfhDays) return;
     // Process regular WFH schedules
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);

@@ -30,8 +30,8 @@ export default async function ProfilePage() {
   const userId = user.id;
 
   // --- Run all data fetching in parallel ---
-  const userDetailsQuery = supabase.rpc("get_user_details", { p_user_id: userId }).single();
-  const wfhScheduleQuery = supabase.rpc("get_user_wfh_schedule", { p_user_id: userId }).single();
+  const userDetailsQuery = supabase.rpc("get_user_details", { p_user_id: userId });
+  const wfhScheduleQuery = supabase.rpc("get_user_wfh_schedule", { p_user_id: userId });
   const overtimeHistoryQuery = supabase.rpc("get_user_overtime_history", {
     p_user_id: userId,
   });
@@ -42,6 +42,7 @@ export default async function ProfilePage() {
     overtimeHistoryQuery,
   ]);
 
+  // Destructure results and handle potential nulls from single()
   const { data: userDetails, error: userDetailsError } = userDetailsResult;
   const { data: wfhSchedule, error: wfhError } = wfhScheduleResult;
   const { data: overtimeHistory, error: overtimeError } = overtimeHistoryResult;
@@ -54,14 +55,18 @@ export default async function ProfilePage() {
     );
   }
 
+  // Find the first item if the results are arrays
+  const firstUserDetails = Array.isArray(userDetails) ? userDetails[0] : userDetails;
+  const firstWfhSchedule = Array.isArray(wfhSchedule) ? wfhSchedule[0] : wfhSchedule;
+
   // Return 404 if user details aren't found
-  if (!userDetails) {
+  if (!firstUserDetails) {
     notFound();
   }
 
   // Cast to our defined types for TypeScript
-  const typedUserDetails = userDetails as unknown as UserDetailsData;
-  const typedWfhSchedule = wfhSchedule as unknown as WfhScheduleData | null;
+  const typedUserDetails = firstUserDetails as unknown as UserDetailsData;
+  const typedWfhSchedule = firstWfhSchedule as unknown as WfhScheduleData | null;
 
   // Day names for WFH display
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
