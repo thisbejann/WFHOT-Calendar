@@ -20,10 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { toast } from "react-toastify";
 import { useEffect } from "react";
+import type { User } from "@supabase/supabase-js";
 
 export type OvertimeFiling = {
   id: number;
@@ -118,16 +118,43 @@ export default function OvertimeFilingForm({
     const [endHours, endMinutes] = endTime.split(":").map(Number);
     endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+    // --- Validation for overlapping overtime ---
+    let overlapQuery = supabase
+      .from("overtime_filings")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id)
+      .eq("status", "approved")
+      .lt("start_time", endDateTime.toISOString()) // existing start < new end
+      .gt("end_time", startDateTime.toISOString()); // existing end > new start
+
+    if (isEditMode) {
+      overlapQuery = overlapQuery.neq("id", filingToEdit.id);
+    }
+
+    const { error: overlapError, count } = await overlapQuery;
+
+    if (overlapError) {
+      toast.error("Could not validate overtime filing. Please try again.");
+      console.error("Error checking for overlapping filings:", overlapError);
+      return;
+    }
+
+    if (count && count > 0) {
+      toast.error("This filing overlaps with an existing approved overtime.");
+      return;
+    }
+    // --- End validation ---
+
     const filingData = {
       user_id: user.id,
       start_time: startDateTime.toISOString(),
       end_time: endDateTime.toISOString(),
       reason,
-      status: "pending",
+      status: "approved",
     };
 
     if (isEditMode) {
-      // In edit mode, we delete the old filing and create a new one to re-trigger approval.
+      // In edit mode, we delete the old filing and create a new one to update the record.
       const { error: deleteError } = await supabase
         .from("overtime_filings")
         .delete()
@@ -143,7 +170,9 @@ export default function OvertimeFilingForm({
     const { error: insertError } = await supabase.from("overtime_filings").insert(filingData);
 
     if (!insertError) {
-      toast.success(`Overtime filing ${isEditMode ? "updated" : "submitted"} successfully!`);
+      toast.success(
+        `Overtime filing ${isEditMode ? "updated" : "submitted"} and approved successfully!`
+      );
       form.reset();
       if (onFinished) {
         onFinished();

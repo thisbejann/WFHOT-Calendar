@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import PendingRequestsTable, { PendingFiling } from "./pending-requests-table";
 import AdminWfhCalendar from "./admin-wfh-calendar";
 import AllOvertimeHistory, { OvertimeHistory } from "./all-overtime-history";
 import { useSearchParams, usePathname } from "next/navigation";
@@ -11,17 +10,16 @@ import { Loader2 } from "lucide-react";
 import { useAdminData } from "@/lib/context/admin-data-context";
 
 interface AdminDashboardProps {
-  pendingFilings: PendingFiling[];
   overtimeHistory: OvertimeHistory[];
 }
 
-export default function AdminDashboard({ pendingFilings, overtimeHistory }: AdminDashboardProps) {
+export default function AdminDashboard({ overtimeHistory }: AdminDashboardProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const initialTab = searchParams.get("tab");
-  const validTabs = ["pending-ot", "overtime-history", "wfh-calendar"];
+  const validTabs = ["overtime-history", "wfh-calendar"];
   const [activeTab, setActiveTab] = useState(
-    initialTab && validTabs.includes(initialTab) ? initialTab : "pending-ot"
+    initialTab && validTabs.includes(initialTab) ? initialTab : "overtime-history"
   );
   const { wfhSchedules, oneOffWfhDays, isLoading: isCalendarLoading } = useAdminData();
 
@@ -33,10 +31,7 @@ export default function AdminDashboard({ pendingFilings, overtimeHistory }: Admi
   return (
     <div className="relative">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending-ot" className="cursor-pointer">
-            Pending Overtime
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="overtime-history" className="cursor-pointer">
             Overtime History
           </TabsTrigger>
@@ -45,18 +40,6 @@ export default function AdminDashboard({ pendingFilings, overtimeHistory }: Admi
           </TabsTrigger>
         </TabsList>
         <div className="mt-4">
-          {activeTab === "pending-ot" && (
-            <TabsContent value="pending-ot">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pending Overtime Requests</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PendingRequestsTable initialPendingFilings={pendingFilings} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
           {activeTab === "overtime-history" && (
             <TabsContent value="overtime-history">
               <Card>
