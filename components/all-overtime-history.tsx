@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "./ui/badge";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -23,11 +22,9 @@ export type OvertimeHistory = {
   end_time: string;
   reason: string | null;
   full_name: string | null;
-  status: "approved" | "declined" | "pending";
-  reviewer_full_name: string | null;
 };
 
-type SortKey = "start_time" | "status";
+type SortKey = "start_time" | "end_time";
 
 interface AllOvertimeHistoryProps {
   overtimeHistory: OvertimeHistory[];
@@ -37,17 +34,6 @@ export default function AllOvertimeHistory({ overtimeHistory }: AllOvertimeHisto
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("start_time");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-
-  const getStatusVariant = (status: "approved" | "declined" | "pending") => {
-    switch (status) {
-      case "approved":
-        return "default";
-      case "declined":
-        return "destructive";
-      case "pending":
-        return "secondary";
-    }
-  };
 
   const sortedHistory = [...overtimeHistory].sort((a, b) => {
     const aValue = a[sortKey];
@@ -92,20 +78,17 @@ export default function AllOvertimeHistory({ overtimeHistory }: AllOvertimeHisto
               <TableHead>Employee</TableHead>
               <TableHead>
                 <Button variant="ghost" onClick={() => handleSort("start_time")}>
-                  Date
+                  Start
                   <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
               </TableHead>
-              <TableHead>Start Time</TableHead>
-              <TableHead>End Time</TableHead>
-              <TableHead>Reason</TableHead>
               <TableHead>
-                <Button variant="ghost" onClick={() => handleSort("status")}>
-                  Status
+                <Button variant="ghost" onClick={() => handleSort("end_time")}>
+                  End
                   <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
               </TableHead>
-              <TableHead>Reviewed By</TableHead>
+              <TableHead>Reason</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -117,19 +100,14 @@ export default function AllOvertimeHistory({ overtimeHistory }: AllOvertimeHisto
                       {filing.full_name || "N/A"}
                     </Link>
                   </TableCell>
-                  <TableCell>{format(new Date(filing.start_time), "PPP")}</TableCell>
-                  <TableCell>{format(new Date(filing.start_time), "p")}</TableCell>
-                  <TableCell>{format(new Date(filing.end_time), "p")}</TableCell>
+                  <TableCell>{format(new Date(filing.start_time), "PP p")}</TableCell>
+                  <TableCell>{format(new Date(filing.end_time), "PP p")}</TableCell>
                   <TableCell>{filing.reason}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(filing.status)}>{filing.status}</Badge>
-                  </TableCell>
-                  <TableCell>{filing.reviewer_full_name || "N/A"}</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={4} className="text-center">
                   No overtime history found.
                 </TableCell>
               </TableRow>
