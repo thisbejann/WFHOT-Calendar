@@ -43,15 +43,13 @@ export default function WfhCalendarView({
   const [filingToEdit, setFilingToEdit] = React.useState<OvertimeFiling | null>(null);
   const supabase = createClient();
 
+  const handleFileOneOffWfh = (date: Date) => {
+    setIsDetailsDialogOpen(false); // Close overtime details dialog
+    setSelectedDate(date); // Ensure the date is set for the OneOffWfhForm
+    setIsOneOffWfhDialogOpen(true); // Open one-off WFH dialog
+  };
+
   const handleDayClick: DayClickEventHandler = (day, modifiers) => {
-    const dayOfWeek = getDay(day);
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-    if (isWeekend) {
-      toast.info("Cannot file for WFH on a weekend.");
-      return;
-    }
-
     const dateKey = format(day, "yyyy-MM-dd");
     const details = overtimeDetails[dateKey] || [];
 
@@ -59,6 +57,14 @@ export default function WfhCalendarView({
       setSelectedDayDetails(details);
       setSelectedDate(day);
       setIsDetailsDialogOpen(true);
+      return;
+    }
+
+    // Only check for WFH weekend filing after checking for existing OT
+    const dayOfWeek = getDay(day);
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    if (isWeekend) {
+      toast.info("Cannot file for WFH on a weekend.");
       return;
     }
 
@@ -107,6 +113,10 @@ export default function WfhCalendarView({
 
   const overtimeOnlyDays = overtimeDays.filter((otDate) => !wfhDaysOfWeek.includes(getDay(otDate)));
 
+  const oneOffWfhAndOvertimeDays = overtimeDays.filter((otDate) =>
+    oneOffWfhDays.some((wfhDate) => format(wfhDate, "yyyy-MM-dd") === format(otDate, "yyyy-MM-dd"))
+  );
+
   return (
     <div className="flex flex-col items-center">
       <Calendar
@@ -118,6 +128,7 @@ export default function WfhCalendarView({
           oneOffWfh: oneOffWfhDays,
           overtime: overtimeOnlyDays,
           wfhAndOvertime: overtimeOnWfhDays,
+          oneOffWfhAndOvertime: oneOffWfhAndOvertimeDays,
         }}
         modifiersStyles={{
           wfh: {
@@ -134,6 +145,9 @@ export default function WfhCalendarView({
           },
           wfhAndOvertime: {
             background: "linear-gradient(45deg, #e3f2fd 50%, #e8f5e9 50%)",
+          },
+          oneOffWfhAndOvertime: {
+            background: "linear-gradient(45deg, #f3e5f5 50%, #e8f5e9 50%)",
           },
         }}
         className="rounded-md border"
@@ -171,6 +185,16 @@ export default function WfhCalendarView({
           />
           <span className="text-sm text-muted-foreground">WFH & OT</span>
         </div>
+        <div className="flex items-center space-x-2">
+          <div
+            className="h-4 w-4 rounded-full"
+            style={{
+              background: "linear-gradient(45deg, #f3e5f5 50%, #e8f5e9 50%)",
+              border: "1px solid #ababab",
+            }}
+          />
+          <span className="text-sm text-muted-foreground">One-off WFH & OT</span>
+        </div>
       </div>
       <OvertimeDetailsDialog
         isOpen={isDetailsDialogOpen}
@@ -179,6 +203,7 @@ export default function WfhCalendarView({
         day={selectedDate}
         onEdit={handleStartEdit}
         onDelete={handleDeleteFiling}
+        onFileOneOffWfh={handleFileOneOffWfh}
       />
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

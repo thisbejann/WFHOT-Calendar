@@ -5,7 +5,14 @@ import type { User } from "@supabase/supabase-js";
 import WfhScheduleForm from "./wfh-schedule-form";
 import OvertimeFilingForm from "./overtime-filing-form";
 import { createClient } from "@/lib/supabase/client";
-import { startOfMonth, endOfMonth, format, eachDayOfInterval } from "date-fns";
+import {
+  startOfMonth,
+  endOfMonth,
+  format,
+  eachDayOfInterval,
+  startOfWeek,
+  endOfWeek,
+} from "date-fns";
 import WfhCalendarView from "./wfh-calendar-view";
 import { toast } from "react-toastify";
 
@@ -28,12 +35,11 @@ export default function UserDashboard({ user }: { user: User }) {
   const [overtimeDetails, setOvertimeDetails] = useState<OvertimeDetailsMap>({});
   const [oneOffWfhDays, setOneOffWfhDays] = useState<Date[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [fetchedMonths, setFetchedMonths] = useState<string[]>([format(new Date(), "yyyy-MM")]);
 
   const fetchOvertimeData = useCallback(
     async (dateForMonth: Date) => {
-      const monthStart = startOfMonth(dateForMonth);
-      const monthEnd = endOfMonth(dateForMonth);
+      const monthStart = startOfWeek(startOfMonth(dateForMonth), { weekStartsOn: 0 });
+      const monthEnd = endOfWeek(endOfMonth(dateForMonth), { weekStartsOn: 0 });
       const { data: overtimeData, error } = await supabase
         .from("overtime_filings")
         .select("id, start_time, end_time, status")
@@ -93,8 +99,8 @@ export default function UserDashboard({ user }: { user: User }) {
 
   const fetchOneOffWfhDays = useCallback(
     async (dateForMonth: Date) => {
-      const monthStart = startOfMonth(dateForMonth);
-      const monthEnd = endOfMonth(dateForMonth);
+      const monthStart = startOfWeek(startOfMonth(dateForMonth), { weekStartsOn: 0 });
+      const monthEnd = endOfWeek(endOfMonth(dateForMonth), { weekStartsOn: 0 });
 
       const { data, error } = await supabase
         .from("one_off_wfh_days")
@@ -115,12 +121,8 @@ export default function UserDashboard({ user }: { user: User }) {
 
   const handleMonthChange = (month: Date) => {
     setCurrentMonth(month);
-    const monthKey = format(month, "yyyy-MM");
-    if (!fetchedMonths.includes(monthKey)) {
-      setFetchedMonths([...fetchedMonths, monthKey]);
-      fetchOvertimeData(month);
-      fetchOneOffWfhDays(month);
-    }
+    fetchOvertimeData(month);
+    fetchOneOffWfhDays(month);
   };
 
   const handleDataRefresh = () => {
@@ -139,8 +141,9 @@ export default function UserDashboard({ user }: { user: User }) {
     }
 
     fetchWfhSchedule();
-    handleDataRefresh();
-  }, [user.id, supabase]);
+    fetchOvertimeData(currentMonth);
+    fetchOneOffWfhDays(currentMonth);
+  }, [user.id, supabase, currentMonth, fetchOvertimeData, fetchOneOffWfhDays]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">

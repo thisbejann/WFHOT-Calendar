@@ -40,9 +40,35 @@ export default function OneOffWfhForm({
     if (!selectedDate) return;
     setIsSubmitting(true);
 
+    const formattedDate = format(selectedDate, "yyyy-MM-dd");
+
+    // Check for existing approved overtime on this date
+    const { count: overtimeCount, error: overtimeError } = await supabase
+      .from("overtime_filings")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id)
+      .eq("status", "approved")
+      .gte("start_time", `${formattedDate}T00:00:00`)
+      .lte("start_time", `${formattedDate}T23:59:59`);
+
+    if (overtimeError) {
+      toast.error("Failed to check for existing overtime. Please try again.");
+      console.error("Error checking for overtime:", overtimeError);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (overtimeCount && overtimeCount > 0) {
+      toast.error(
+        "You have an approved overtime filing on this date. Cannot file for one-off WFH."
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase.from("one_off_wfh_days").insert({
       user_id: user.id,
-      date: format(selectedDate, "yyyy-MM-dd"),
+      date: formattedDate,
       reason: reason,
     });
 

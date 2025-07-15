@@ -18,6 +18,7 @@ interface OvertimeDetailsDialogProps {
   day: Date | null;
   onDelete: (id: number) => void;
   onEdit: (id: number) => void;
+  onFileOneOffWfh: (date: Date) => void;
 }
 
 export default function OvertimeDetailsDialog({
@@ -26,6 +27,8 @@ export default function OvertimeDetailsDialog({
   overtimeDetails,
   onDelete,
   onEdit,
+  day,
+  onFileOneOffWfh,
 }: OvertimeDetailsDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -60,6 +63,11 @@ export default function OvertimeDetailsDialog({
           ))}
         </div>
         <DialogFooter>
+          {day && (
+            <Button variant="secondary" onClick={() => onFileOneOffWfh(day)} className="mr-auto">
+              File One-Off WFH
+            </Button>
+          )}
           <DialogClose asChild>
             <Button variant="outline" onClick={onClose}>
               Close
