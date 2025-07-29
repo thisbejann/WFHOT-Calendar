@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
 import type { OvertimeDetail } from "./user-dashboard";
+import { getDay } from "date-fns";
 
 interface OvertimeDetailsDialogProps {
   isOpen: boolean;
@@ -30,6 +31,8 @@ export default function OvertimeDetailsDialog({
   day,
   onFileOneOffWfh,
 }: OvertimeDetailsDialogProps) {
+  const isWeekend = day ? getDay(day) === 0 || getDay(day) === 6 : false;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -63,7 +66,7 @@ export default function OvertimeDetailsDialog({
           ))}
         </div>
         <DialogFooter>
-          {day && (
+          {day && !isWeekend && (
             <Button variant="secondary" onClick={() => onFileOneOffWfh(day)} className="mr-auto">
               File One-Off WFH
             </Button>
