@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,6 @@ const wfhFormSchema = z.object({
 type WfhFormValues = z.infer<typeof wfhFormSchema>;
 
 export default function WfhScheduleForm({ user, onFinished }: WfhScheduleFormProps) {
-  const router = useRouter();
   const supabase = createClient();
 
   const form = useForm<WfhFormValues>({
