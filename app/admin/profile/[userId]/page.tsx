@@ -111,7 +111,11 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
               <CardTitle>Overtime History</CardTitle>
             </CardHeader>
             <CardContent>
-              <AllOvertimeHistory overtimeHistory={(overtimeHistory as OvertimeHistory[]) || []} />
+              <AllOvertimeHistory
+                overtimeHistory={(overtimeHistory as OvertimeHistory[]) || []}
+                isAdminView={true}
+                selectedUserId={userId}
+              />
             </CardContent>
           </Card>
         </div>
