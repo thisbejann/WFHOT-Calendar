@@ -119,31 +119,31 @@ export default function UserDashboard({ user }: { user: User }) {
     [supabase, user.id]
   );
 
+  const fetchWfhSchedule = useCallback(async () => {
+    const { data: wfhData } = await supabase
+      .from("wfh_schedules")
+      .select("days_of_week")
+      .eq("user_id", user.id)
+      .single();
+
+    setWfhDaysOfWeek(wfhData?.days_of_week || []);
+  }, [supabase, user.id]);
+
   const handleMonthChange = (month: Date) => {
     setCurrentMonth(month);
     fetchOvertimeData(month);
     fetchOneOffWfhDays(month);
   };
 
-  const handleDataRefresh = () => {
+  const handleDataRefresh = useCallback(() => {
     fetchOvertimeData(currentMonth);
     fetchOneOffWfhDays(currentMonth);
-  };
+    fetchWfhSchedule();
+  }, [currentMonth, fetchOvertimeData, fetchOneOffWfhDays, fetchWfhSchedule]);
 
   useEffect(() => {
-    async function fetchWfhSchedule() {
-      const { data: wfhData } = await supabase
-        .from("wfh_schedules")
-        .select("days_of_week")
-        .eq("user_id", user.id)
-        .single();
-      setWfhDaysOfWeek(wfhData?.days_of_week || []);
-    }
-
-    fetchWfhSchedule();
-    fetchOvertimeData(currentMonth);
-    fetchOneOffWfhDays(currentMonth);
-  }, [user.id, supabase, currentMonth, fetchOvertimeData, fetchOneOffWfhDays]);
+    handleDataRefresh();
+  }, [handleDataRefresh]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
@@ -165,7 +165,7 @@ export default function UserDashboard({ user }: { user: User }) {
         </CardContent>
       </Card>
       <div className="space-y-4">
-        <WfhScheduleForm user={user} />
+        <WfhScheduleForm user={user} onFinished={handleDataRefresh} />
         <OvertimeFilingForm user={user} onFinished={handleDataRefresh} />
       </div>
     </div>

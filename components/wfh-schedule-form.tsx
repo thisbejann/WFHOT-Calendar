@@ -21,6 +21,11 @@ import type { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { toast } from "react-toastify";
 
+interface WfhScheduleFormProps {
+  user: User;
+  onFinished?: () => void;
+}
+
 const daysOfWeek = [
   { id: 1, label: "Monday" },
   { id: 2, label: "Tuesday" },
@@ -37,7 +42,7 @@ const wfhFormSchema = z.object({
 
 type WfhFormValues = z.infer<typeof wfhFormSchema>;
 
-export default function WfhScheduleForm({ user }: { user: User }) {
+export default function WfhScheduleForm({ user, onFinished }: WfhScheduleFormProps) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -76,7 +81,9 @@ export default function WfhScheduleForm({ user }: { user: User }) {
 
     if (!error) {
       toast.success("WFH schedule saved successfully!");
-      router.refresh();
+      if (onFinished) {
+        onFinished();
+      }
     } else {
       toast.error("Error saving WFH schedule.");
       console.error("Error saving WFH schedule:", error);

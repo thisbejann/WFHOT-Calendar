@@ -117,7 +117,11 @@ export default async function ProfilePage() {
               <CardTitle>Overtime History</CardTitle>
             </CardHeader>
             <CardContent>
-              <AllOvertimeHistory overtimeHistory={(overtimeHistory as OvertimeHistory[]) || []} />
+              <AllOvertimeHistory
+                overtimeHistory={(overtimeHistory as OvertimeHistory[]) || []}
+                isAdminView={false}
+                selectedUserId={userId}
+              />
             </CardContent>
           </Card>
         </div>
