@@ -4,12 +4,14 @@ import AllOvertimeHistory, { OvertimeHistory } from "@/components/all-overtime-h
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import UserProfile from "@/components/user-profile";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Define strong interfaces for our data types
 interface UserDetailsData {
   full_name: string;
   email: string;
+  avatar_url?: string;
 }
 
 interface WfhScheduleData {
@@ -76,12 +78,6 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
 
   return (
     <div className="flex flex-col w-full min-h-screen">
-      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-50">
-        <h1 className="text-xl font-bold">Vertiv Calendar</h1>
-        <div className="ml-auto">
-          <UserProfile user={user} />
-        </div>
-      </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 bg-muted/40">
         <div className="mb-4">
           <Link
@@ -95,15 +91,27 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
         <div className="grid gap-4 md:gap-8">
           <Card>
             <CardHeader>
-              <CardTitle>{typedUserDetails.full_name || "User Profile"}</CardTitle>
+              <CardTitle>User Profile</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <p>
-                <strong>Email:</strong> {typedUserDetails.email}
-              </p>
-              <p>
-                <strong>Permanent WFH Schedule:</strong> {wfhDays}
-              </p>
+            <CardContent className="flex items-center space-x-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage
+                  src={typedUserDetails.avatar_url || undefined}
+                  alt={typedUserDetails.full_name || "User"}
+                />
+                <AvatarFallback>
+                  {typedUserDetails.full_name
+                    ? typedUserDetails.full_name.charAt(0).toUpperCase()
+                    : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-lg font-semibold">{typedUserDetails.full_name || "N/A"}</p>
+                <p className="text-sm text-muted-foreground">{typedUserDetails.email}</p>
+                <p className="text-sm mt-2">
+                  <strong>Permanent WFH Schedule:</strong> {wfhDays}
+                </p>
+              </div>
             </CardContent>
           </Card>
           <Card>

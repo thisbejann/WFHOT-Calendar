@@ -53,7 +53,6 @@ export default function AdminDashboard({ overtimeHistory }: AdminDashboardProps)
       if (error) {
         console.error("Error fetching users:", error);
       } else if (data) {
-        console.log("Fetched user profiles:", data);
         setAllUsers(data);
       }
     };
